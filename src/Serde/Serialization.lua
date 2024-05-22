@@ -1,8 +1,6 @@
 --!strict
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local TypeId = require(ReplicatedStorage.DeltaCompress.TypeId)
+local TypeId = require(script.Parent.Parent.TypeId)
 local isArray = require(script.Parent.Parent.isArray)
 local Writer = require(script.Parent.Parent.Buffer.Writer)
 local Vlq = require(script.Parent.Parent.Vlq)

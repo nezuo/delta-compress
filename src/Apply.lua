@@ -1,9 +1,7 @@
 --!strict
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local Reader = require(ReplicatedStorage.DeltaCompress.Buffer.Reader)
-local Deserialization = require(ReplicatedStorage.DeltaCompress.Serde.Deserialization)
+local Reader = require(script.Parent.Buffer.Reader)
+local Deserialization = require(script.Parent.Serde.Deserialization)
 local TypeId = require(script.Parent.TypeId)
 local Vlq = require(script.Parent.Vlq)
 local isArray = require(script.Parent.isArray)

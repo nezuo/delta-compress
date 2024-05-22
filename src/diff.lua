@@ -1,12 +1,10 @@
 --!strict
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local TypeId = require(script.Parent.TypeId)
 local Vlq = require(script.Parent.Vlq)
 local isArray = require(script.Parent.isArray)
-local Writer = require(ReplicatedStorage.DeltaCompress.Buffer.Writer)
-local Serialization = require(ReplicatedStorage.DeltaCompress.Serde.Serialization)
+local Writer = require(script.Parent.Buffer.Writer)
+local Serialization = require(script.Parent.Serde.Serialization)
 
 type Writer = Writer.Writer
 
