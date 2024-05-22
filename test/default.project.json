@@ -1,0 +1,21 @@
+{
+    "name": "delta-compress",
+    "tree": {
+        "$className": "DataModel",
+
+        "ReplicatedStorage": {
+            "DevPackages": {
+                "$path": "../DevPackages"
+            },
+            "DeltaCompress": {
+                "$path": "../src"
+            }
+        },
+
+        "ServerScriptService": {
+            "runTests": {
+                "$path": "runTests.server.lua"
+            }
+        }
+    }
+}

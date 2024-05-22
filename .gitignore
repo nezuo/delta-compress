@@ -1,0 +1,9 @@
+*.rbxlx
+*.rbxl
+
+*.rbxlx.lock
+*.rbxl.lock
+
+/DevPackages
+
+/sourcemap.json
