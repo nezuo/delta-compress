@@ -142,11 +142,64 @@ local function apply(old: {}, diff: buffer, immutable: boolean): any
 	end
 end
 
-local function applyImmutable(old: {}, diff: buffer): any
+--[=[
+	Applies a diff created by [DeltaCompress.diff] immutably. The `old` value passed won't mutated, instead, a new value will be returned.
+
+	```lua
+	local old = { coins = 10, completedTutorial = true }
+	local new = { coins = 320, completedTutorial = true }
+	local diff = DeltaCompress.diff(old, new)
+
+	local applied = DeltaCompress.applyImmutable(old, diff)
+
+	print(applied) -- { coins = 320, completedTutorial = true }
+
+	-- `old` didn't change since the diff was applied immutably.
+	print(old) -- { coins = 10, completedTutorial = true }
+	```
+
+	@within DeltaCompress
+	@param old any
+	@param diff buffer
+	@return any
+]=]
+local function applyImmutable(old: any, diff: buffer): any
 	return apply(old, diff, true)
 end
 
-local function applyMutable(old: {}, diff: buffer): any
+--[=[
+	Applies a diff created by [DeltaCompress.diff] mutably. The `old` value passed will be mutated.
+
+	```lua
+	local old = { coins = 10, completedTutorial = true }
+	local new = { coins = 320, completedTutorial = true }
+	local diff = DeltaCompress.diff(old, new)
+
+	local applied = DeltaCompress.applyMutable(old, diff)
+
+	print(applied) -- { coins = 320, completedTutorial = true }
+
+	-- `old` was mutated and returned, `applied` and `old` are the same table.
+	print(applied == old) -- true
+	```
+
+	Though tables are updated mutably, other data types have to be returned from the function:
+	```lua
+	local old = 100
+	local new = "hello"
+	local diff = DeltaCompress.diff(old, new)
+
+	local applied = DeltaCompress.applyMutable(old, diff)
+
+	print(applied) -- "hello"
+	```
+
+	@within DeltaCompress
+	@param old any
+	@param diff buffer
+	@return any
+]=]
+local function applyMutable(old: any, diff: buffer): any
 	return apply(old, diff, false)
 end
 

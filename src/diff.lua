@@ -253,6 +253,21 @@ function writeDictionaryDiff(writer: Writer, dictionaryDiff: DictionaryDiff)
 	end
 end
 
+--[=[
+	Calculates the difference between `old` and `new` and returns it as a `buffer`. If `old` and `new` are identical, it returns `nil`.
+
+	```lua
+	local old = { coins = 10, completedTutorial = true }
+	local new = { coins = 320, completedTutorial = true }
+
+	local diff = DeltaCompress.diff(old, new) -- Returns a buffer that encodes the change in coins.
+	```
+
+	@within DeltaCompress
+	@param old any
+	@param new any
+	@return buffer? -- A buffer representing the difference, or `nil` if there are no differences.
+]=]
 local function diff(old: any, new: any): buffer?
 	local writer = Writer.new()
 
