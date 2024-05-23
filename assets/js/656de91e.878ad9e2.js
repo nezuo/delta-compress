@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[589],{7636:e=>{e.exports=JSON.parse('[{"type":"link","href":"/api/DeltaCompress","label":"\u200bDelta\u200bCompress"}]')}}]);
