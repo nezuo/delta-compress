@@ -143,7 +143,7 @@ local function apply(old: {}, diff: buffer, immutable: boolean): any
 end
 
 --[=[
-	Applies a diff created by [DeltaCompress.diff] immutably. The `old` value passed won't mutated, instead, a new value will be returned.
+	Applies a diff created by [DeltaCompress.diffImmutable] or [DeltaCompress.diffMutable] immutably. The `old` value passed won't mutated, instead, a new value will be returned.
 
 	```lua
 	local old = { coins = 10, completedTutorial = true }
@@ -168,7 +168,7 @@ local function applyImmutable(old: any, diff: buffer): any
 end
 
 --[=[
-	Applies a diff created by [DeltaCompress.diff] mutably. The `old` value passed will be mutated.
+	Applies a diff created by [DeltaCompress.diffImmutable] or [DeltaCompress.diffMutable] mutably. The `old` value passed will be mutated.
 
 	```lua
 	local old = { coins = 10, completedTutorial = true }

@@ -64,7 +64,7 @@ local function checkInner(old, new, immutable, debug)
 		freezeIfTable(new)
 	end
 
-	local diff = DeltaCompress.diff(old, new)
+	local diff = DeltaCompress.diffImmutable(old, new)
 
 	-- print(RemotePacketSizeCounter.GetDataByteSize(new), "->", buffer.len(diff))
 
@@ -94,6 +94,41 @@ end
 local function check(old, new, debug)
 	checkInner(deepCopy(old), deepCopy(new), true, debug)
 	checkInner(deepCopy(old), deepCopy(new), false, debug)
+end
+
+local function checkMutable(old, new, debug)
+	local oldOld = deepCopy(old)
+
+	freezeIfTable(new)
+
+	local diff, newOld = DeltaCompress.diffMutable(old, new)
+
+	assert(diff ~= nil, "diff was nil")
+
+	local applied = DeltaCompress.applyImmutable(oldOld, diff)
+
+	if debug then
+		print("Applied =", applied)
+	end
+
+	assertDeepEqual(newOld, new, "newOld and new not equal")
+
+	assertDeepEqual(applied, new, "applied not equal")
+
+	if typeof(new) == "table" then
+		assert(old ~= new, "old and new are the same table")
+
+		local function checkForSameTable(nestedOld, nestedNew)
+			for key, value in nestedNew do
+				if type(value) == "table" then
+					assert(nestedOld[key] ~= value, "old and new have a same table")
+					checkForSameTable(nestedOld[key], value)
+				end
+			end
+		end
+
+		checkForSameTable(newOld, new)
+	end
 end
 
 return function(x)
@@ -158,7 +193,7 @@ return function(x)
 		end)
 
 		x.test("no changes", function()
-			local diff = DeltaCompress.diff({ foo = true }, { foo = true })
+			local diff = DeltaCompress.diffImmutable({ foo = true }, { foo = true })
 
 			assertEqual(diff, nil)
 		end)
@@ -220,7 +255,7 @@ return function(x)
 		end)
 
 		x.test("no changes", function()
-			local diff = DeltaCompress.diff({ "one", "two", "three" }, { "one", "two", "three" })
+			local diff = DeltaCompress.diffImmutable({ "one", "two", "three" }, { "one", "two", "three" })
 
 			assertEqual(diff, nil)
 		end)
@@ -349,7 +384,7 @@ return function(x)
 			baz = {},
 		}
 
-		local diff = DeltaCompress.diff(old, new)
+		local diff = DeltaCompress.diffImmutable(old, new)
 
 		local oldApplied = deepCopy(old)
 		local newApplied = DeltaCompress.applyImmutable(oldApplied, diff)
@@ -418,12 +453,73 @@ return function(x)
 		local new = table.clone(old)
 		new[randomStrings[1]] = 4
 
-		local diff = DeltaCompress.diff(old, new)
+		local diff = DeltaCompress.diffImmutable(old, new)
 
 		local diffSize = RemotePacketSizeCounter.GetDataByteSize(diff)
 		local newSize = RemotePacketSizeCounter.GetDataByteSize(new)
 
 		assertEqual(diffSize == 20, true)
 		assertEqual(newSize == 802, true)
+	end)
+
+	x.nested("diffMutable", function()
+		x.test("no changes", function()
+			local old = { foo = true }
+			local copied = deepCopy(old)
+
+			local diff, updatedOld = DeltaCompress.diffImmutable(old, { foo = true })
+
+			assertEqual(diff, nil)
+			assertEqual(updatedOld, nil)
+
+			assertDeepEqual(old, copied)
+		end)
+
+		x.test("non-tables", function()
+			checkMutable("hello", 520)
+			checkMutable("hello", nil)
+			checkMutable(nil, false)
+		end)
+
+		x.test("nil to table", function()
+			checkMutable(nil, {
+				a = "hello",
+				b = { 5, 4, 3, 2, 1 },
+				c = {
+					foo = "bar",
+				},
+			})
+		end)
+
+		x.test("copies new tables in dictionary", function()
+			checkMutable({
+				a = true,
+			}, {
+				a = { 1, 2, 3 },
+				b = { true, false },
+			})
+		end)
+
+		x.test("copies new tables in array", function()
+			checkMutable({
+				array = { 1, 2, 3 },
+			}, {
+				array = { 1, { "hello" }, 3, { "abc" } },
+			})
+		end)
+
+		x.test("handles nested diffs", function()
+			checkMutable({
+				array = { "a", "b", "c", 1, 2, 3 },
+				dictionary = {
+					foo = "bar",
+				},
+			}, {
+				array = { "c", "b", "a" },
+				dictionary = {
+					foo = "baz",
+				},
+			})
+		end)
 	end)
 end

@@ -14,7 +14,7 @@ end
 
 local function onPlayerAdded(player: Player)
     -- When a new player joins, we can send them a diff between nil and gameStats.
-    local initialDiff = DeltaCompress.diff(nil, gameStats)
+    local initialDiff = DeltaCompress.diffImmutable(nil, gameStats)
 
     ReplicatedStorage.RoundInfoUpdateRemote:FireClient(initialDiff)
 end
@@ -26,7 +26,7 @@ RunService.Heartbeat:Connect(function()
     end
 
     -- Since data is update immutably, there should always be a diff.
-    local diff = DeltaCompress.diff(lastSent, gameStats)
+    local diff = DeltaCompress.diffImmutable(lastSent, gameStats)
 
     lastSent = gameStats
 
@@ -40,7 +40,7 @@ local gameStats = {
     round = 0,
     playerCount = 0,
 }
-local lastSent = deepCopy(gameStats)
+local lastSent = nil
 
 local function incrementRound()
     gameStats.round += 1
@@ -48,20 +48,22 @@ end
 
 local function onPlayerAdded(player: Player)
     -- When a new player joins, we can send them a diff between nil and gameStats.
-    local initialDiff = DeltaCompress.diff(nil, gameStats)
+    local initialDiff, updatedLastSent = DeltaCompress.diffMutable(nil, gameStats)
+
+    lastSent = updatedLastSent
 
     ReplicatedStorage.RoundInfoUpdateRemote:FireClient(initialDiff)
 end
 
 RunService.Heartbeat:Connect(function()
-    local diff = DeltaCompress.diff(lastSent, gameStats)
+    local diff, updatedLastSent = DeltaCompress.diff(lastSent, gameStats)
 
     if diff == nil then
         -- gameStats hasn't changed.
         return
     end
 
-    lastSent = deepCopy(gameStats)
+    lastSent = updatedLastSent
 
     ReplicatedStorage.RoundInfoUpdateRemote:FireAllClients(diff)
 end)

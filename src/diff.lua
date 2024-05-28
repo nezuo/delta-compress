@@ -29,13 +29,30 @@ type DictionaryDiff = {
 local diffDictionary, diffArray
 local writeArrayDiff, writeDictionaryDiff
 
+local function copyDeep(x)
+	if type(x) ~= "table" then
+		return x
+	end
+
+	local new = table.clone(x)
+
+	for key, value in x do
+		if type(value) == "table" then
+			new[key] = copyDeep(value)
+		end
+	end
+
+	return new
+end
+
 local function diffValue(
 	oldValue: any,
 	newValue: any,
 	key: any,
 	arrayDiffs: { [number]: ArrayDiff },
 	dictionaryDiffs: { [number]: DictionaryDiff },
-	changes: { [number]: any }
+	changes: { [number]: any },
+	mutable: boolean
 ): boolean
 	if typeof(oldValue) ~= "table" or typeof(newValue) ~= "table" then
 		if oldValue ~= newValue then
@@ -47,7 +64,7 @@ local function diffValue(
 	end
 
 	if isArray(oldValue) and isArray(newValue) then
-		local diff = diffArray(oldValue, newValue)
+		local diff = diffArray(oldValue, newValue, mutable)
 
 		if diff then
 			arrayDiffs[key] = diff
@@ -56,7 +73,7 @@ local function diffValue(
 			return false
 		end
 	elseif not isArray(oldValue) and not isArray(newValue) then
-		local diff = diffDictionary(oldValue, newValue)
+		local diff = diffDictionary(oldValue, newValue, mutable)
 
 		if diff then
 			dictionaryDiffs[key] = diff
@@ -70,7 +87,7 @@ local function diffValue(
 	end
 end
 
-function diffArray(old: {}, new: {}): ArrayDiff?
+function diffArray(old: {}, new: {}, mutable: boolean): ArrayDiff?
 	if old == new then
 		return nil
 	end
@@ -95,12 +112,26 @@ function diffArray(old: {}, new: {}): ArrayDiff?
 		local oldValue = old[i]
 		local newValue = new[i]
 
-		if diffValue(oldValue, newValue, i, arrayDiffs, dictionaryDiffs, changes) then
+		if diffValue(oldValue, newValue, i, arrayDiffs, dictionaryDiffs, changes, mutable) then
 			changeCount += 1
 		end
 	end
 
 	if removals > 0 or #additions > 0 or changeCount > 0 then
+		if mutable then
+			for _ = 1, removals do
+				table.remove(old, #old)
+			end
+
+			for _, addition in additions do
+				table.insert(old, copyDeep(addition))
+			end
+
+			for index, value in changes do
+				old[index] = copyDeep(value)
+			end
+		end
+
 		return {
 			removals = removals,
 			additions = additions,
@@ -114,7 +145,7 @@ function diffArray(old: {}, new: {}): ArrayDiff?
 	return nil
 end
 
-function diffDictionary(old: {}, new: {}): DictionaryDiff?
+function diffDictionary(old: {}, new: {}, mutable: boolean): DictionaryDiff?
 	if old == new then
 		return nil
 	end
@@ -136,12 +167,22 @@ function diffDictionary(old: {}, new: {}): DictionaryDiff?
 	for key, newValue in new do
 		local oldValue = old[key]
 
-		if diffValue(oldValue, newValue, key, arrayDiffs, dictionaryDiffs, changes) then
+		if diffValue(oldValue, newValue, key, arrayDiffs, dictionaryDiffs, changes, mutable) then
 			changeCount += 1
 		end
 	end
 
 	if removalCount > 0 or changeCount > 0 then
+		if mutable then
+			for removal in removals do
+				old[removal] = nil
+			end
+
+			for key, value in changes do
+				old[key] = copyDeep(value)
+			end
+		end
+
 		return {
 			removals = removals,
 			removalCount = removalCount,
@@ -260,7 +301,7 @@ end
 	local old = { coins = 10, completedTutorial = true }
 	local new = { coins = 320, completedTutorial = true }
 
-	local diff = DeltaCompress.diff(old, new) -- Returns a buffer that encodes the change in coins.
+	local diff = DeltaCompress.diffImmutable(old, new) -- Returns a buffer that encodes the change in coins.
 	```
 
 	@within DeltaCompress
@@ -268,7 +309,7 @@ end
 	@param new any
 	@return buffer? -- A buffer representing the difference, or `nil` if there are no differences.
 ]=]
-local function diff(old: any, new: any): buffer?
+local function diffImmutable(old: any, new: any): buffer?
 	local writer = Writer.new()
 
 	if typeof(old) == "table" and typeof(new) == "table" then
@@ -276,7 +317,7 @@ local function diff(old: any, new: any): buffer?
 			if not isArray(new) then
 				Serialization.serialize(writer, new)
 			else
-				local arrayDiff = diffArray(old, new)
+				local arrayDiff = diffArray(old, new, false)
 
 				if arrayDiff ~= nil then
 					writeArrayDiff(writer, arrayDiff)
@@ -288,7 +329,7 @@ local function diff(old: any, new: any): buffer?
 			if isArray(new) then
 				Serialization.serialize(writer, new)
 			else
-				local dictionaryDiff = diffDictionary(old, new)
+				local dictionaryDiff = diffDictionary(old, new, false)
 
 				if dictionaryDiff ~= nil then
 					writeDictionaryDiff(writer, dictionaryDiff)
@@ -306,4 +347,67 @@ local function diff(old: any, new: any): buffer?
 	end
 end
 
-return diff
+--[=[
+	Similar to [DeltaCompress.diffImuttable] except that it returns a copy of `new` that can be used as the old value.
+
+	This function can be more efficient than deep copying `new` when `new` is updated mutably. It mutates `old` with changes from `new`, avoiding unnecessary copying of unchanged data.
+
+	```lua
+	local data = { coins = 320, completedTutorial = true }
+
+	local diff, old = DeltaCompress.diffMutable(nil, data)
+
+	data.coins += 100
+
+	local diff, updatedOld = DeltaCompress.diffMutable(old, data)
+	```
+
+	@within DeltaCompress
+	@param old any
+	@param new any
+	@return (buffer?, any?) -- A buffer representing the difference and the updated old value, or `nil` if there are no differences.
+]=]
+local function diffMutable(old: any, new: any): (buffer?, any?)
+	local writer = Writer.new()
+
+	if typeof(old) == "table" and typeof(new) == "table" then
+		if isArray(old) then
+			if not isArray(new) then
+				Serialization.serialize(writer, new)
+				old = copyDeep(new)
+			else
+				local arrayDiff = diffArray(old, new, true)
+
+				if arrayDiff ~= nil then
+					writeArrayDiff(writer, arrayDiff)
+				else
+					return nil
+				end
+			end
+		else
+			if isArray(new) then
+				Serialization.serialize(writer, new)
+				old = copyDeep(new)
+			else
+				local dictionaryDiff = diffDictionary(old, new, true)
+
+				if dictionaryDiff ~= nil then
+					writeDictionaryDiff(writer, dictionaryDiff)
+				else
+					return nil
+				end
+			end
+		end
+
+		return writer.finish(), old
+	else
+		Serialization.serialize(writer, new)
+
+		return writer.finish(), copyDeep(new)
+	end
+end
+
+return {
+	diffImmutable = diffImmutable,
+	diffMutable = diffMutable,
+}

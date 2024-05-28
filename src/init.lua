@@ -1,12 +1,13 @@
-local diff = require(script.diff)
 local Apply = require(script.Apply)
+local Diff = require(script.Diff)
 
 --[=[
 	@class DeltaCompress
 ]=]
 
 return {
-	diff = diff,
+	diffImmutable = Diff.diffImmutable,
+	diffMutable = Diff.diffMutable,
 	applyImmutable = Apply.applyImmutable,
 	applyMutable = Apply.applyMutable,
 }
