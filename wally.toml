@@ -1,7 +1,6 @@
 [package]
 name = "nezuo/delta-compress"
-# make sure to update docs/intro.MD with the latest version too!
-version = "0.1.3"
+version = "0.1.3" # Make sure to update `docs/intro.md` with the latest version too!
 registry = "https://github.com/UpliftGames/wally-index"
 exclude = ["**"]
 include = ["src", "src/*", "default.project.json", "wally.toml", "LICENSE"]
